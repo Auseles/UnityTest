@@ -46,7 +46,7 @@
 
       function sendBackMessage(unityInstance, message) {
 			  console.log("Sending message to Unity: " + message);
-			  unityInstance.SendMessage("MessageReceiver", "JavaScriptMessageReceive", message);
+			  unityInstance.SendMessage("Blockchain", "JavaScriptMessageReceive", message);
 		  }
 
       var canvas = document.querySelector("#unity-canvas");
