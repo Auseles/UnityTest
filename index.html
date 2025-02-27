@@ -1,38 +1,47 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | AstroMiners</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-      </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-logo-title-footer"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">AstroMiners</div>
-      </div>
-    </div>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Client</title>
+    <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
     <script>
+        window.Telegram.WebApp.showAlert('Hey there!');
+    </script>
+    <style>
+        h1 {
+            color: green;
+        }
 
-      let socket;
-      let url = window.location.href;
-      let paramsStr = url.split('?')[1];
-      let params = new URLSearchParams(paramsStr);
-      let id;
-      let username;
+        .container {
+            margin: 10px;
+        }
+    </style>
+</head>
 
-      function getTelegramPatameters() {
+<body>
+    <h1>WebSocket Example</h1>
+    <div class="container">
+        <label>Send Message to Server:</label> <br><br>
+        <input type="text" id="messageInput">
+        <button onclick="sendMessage()">Send</button>
+        <div id="output"></div>
+    </div>
+
+    <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        alert('user.first_name');
+
+        const worker = new Worker("worker.js");
+
+        let url = window.location.href;
+        let paramsStr = url.split('?')[1];
+        let params = new URLSearchParams(paramsStr);
+        let id;
+        let username;
         for (let pair of params.entries()) 
         {
             let name = pair[0];
@@ -41,131 +50,111 @@
                 username = value;
             if (name == 'id')
                 id = value;
+            //document.write(name + "=" + value + '; ');
         }
-      }
 
-      function sendBackMessage(unityInstance, message) {
-			  console.log("Sending message to Unity: " + message);
-			  unityInstance.SendMessage("Blockchain", "JavaScriptMessageReceive", message);
-		  }
+        // Create a WebSocket instance
+        // and connect to the server
+        const socket = new WebSocket('ws://localhost:4649/app');
 
-      var canvas = document.querySelector("#unity-canvas");
+        // Event listener for when 
+        //the WebSocket connection is opened
+        socket.onopen = function (event) {
+            // Alert the user that they are 
+            // connected to the WebSocket server
+            alert('You are Connected to WebSocket Server');
+            socket.send('Connection#id:' + id + '?' + 'username:' + username + '\f')
+        };
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        var warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        // Event listener for when a message
+        //  is received from the server
+        socket.onmessage = function (event) {
+            const outputDiv = document
+            .getElementById('output');
+
+            outputDiv
+            .innerHTML += `<p>Received <b>"${event.data}"</b> from server.</p>`;
+
+            let str = `'${event.data}'`;
+            if (str.includes('#'))
+            {
+                let requestName = event.data.split('#')[0];
+                let requestText = event.data.split('#')[1];
+                switch (requestName)
+                {
+                    default:
+                        break;
+
+                    case 'Authorization':
+                        {
+                            createInvoice();
+                            break;
+                        }
+                }
+            }
+        };
+
+        async function createInvoice() {
+        const invoice = {
+            chat_id: id, // ID пользователя
+            title: "Покупка товара", // Название товара
+            description: "Описание товара", // Описание
+            payload: "unique_payload_123", // Уникальный идентификатор
+            currency: "XTR", // Валюта (Telegram Stars используют USD)
+            prices: [{ label: "Цена", amount: 1 }], // Цена в минимальных единицах валюты (1000 = $10.00)
+            is_flexible: false // Опционально: гибкая цена
+        };
+        
+        const response = await fetch(`https://api.telegram.org/bot${'7754126241:AAFCGJ3wr4_oKBwJ-QdnVoR9_kxPJc0XvJQ'}/createInvoiceLink`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(invoice)
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            const invoiceLink = data.result; // Получаем ссылку на инвойс
+            tg.openInvoice(invoiceLink); // Открываем окно оплаты внутри Mini App
+        } else {
+            console.error("Ошибка при создании инвойса:", data.description);
         }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
+
         }
-        updateBannerVisibility();
-      }
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/NewBuild.loader.js";
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/NewBuild.data",
-        frameworkUrl: buildUrl + "/NewBuild.framework.js",
-        codeUrl: buildUrl + "/NewBuild.wasm",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "TestJSProj",
-        productVersion: "1.0",
-        showBanner: unityShowBanner,
-      };
+        tg.onEvent("invoiceClosed", (event) => {
+            if (event.status === "paid") {
+                alert("Оплата прошла успешно!");
+        // Дополнительные действия после успешной оплаты
+            } else {
+                alert("Оплата не была завершена.");
+            }
+        });
 
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
+        // Event listener for when the 
+        // WebSocket connection is closed
+        socket.onclose = function (event) {
+            // Log a message when disconnected
+            //  from the WebSocket server
+            console.log('Disconnected from WebSocket server');
+        };
 
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
-
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
-
-      } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
-      }
-
-      document.querySelector("#unity-loading-bar").style.display = "block";
-
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-              }).then((unityInstance) => {
-
-                getTelegramPatameters();
-
-                socket = new WebSocket('ws://localhost:4649/app');
-
-                socket.onopen = function (event) {
-                    alert('You are Connected to WebSocket Server');
-                    socket.send('Connection#id:' + id + '?' + 'username:' + username + '\f')
-                }
-
-                socket.onmessage = function (event) {
-                    let str = `'${event.data}'`;
-                    sendBackMessage(unityInstance, str);
-                }
-              
-                socket.onclose = function (event) {
-                    console.log('Disconnected from WebSocket server');
-                }
-
-                document.querySelector("#unity-loading-bar").style.display = "none";
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-
-              }).catch((message) => {
-                alert(message);
-              });
-            };
-
-      document.body.appendChild(script);
-
+        // Function to send a message
+        //  to the WebSocket server
+        function sendMessage() {
+            // Get the message input element
+            const messageInput = document
+                .getElementById('messageInput');
+            // Get the value of
+            // the message input
+            const message = messageInput.value;
+            // Send the message to 
+            // the WebSocket server
+            socket.send(message);
+            // Clear the message input
+            messageInput.value = '';
+        }
     </script>
-  </body>
+</body>
+
 </html>
